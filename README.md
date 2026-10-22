@@ -1,1 +1,0 @@
-# FranchiseOps-AI

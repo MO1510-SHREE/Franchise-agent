@@ -1,0 +1,580 @@
+from datetime import date, datetime
+from decimal import Decimal
+from typing import Optional, List
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class FranchiseBase(BaseModel):
+    franchise_name: str
+    region: Optional[str] = None
+    owner_name: Optional[str] = None
+
+
+class FranchiseCreate(FranchiseBase):
+    pass
+
+
+class FranchiseResponse(FranchiseBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    franchise_id: int
+
+
+class OutletBase(BaseModel):
+    outlet_name: str
+    location: Optional[str] = None
+    status: Optional[str] = "Active"
+
+
+class OutletCreate(OutletBase):
+    franchise_id: int
+
+
+class OutletResponse(OutletBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    outlet_id: int
+    franchise_id: int
+
+
+class SaleBase(BaseModel):
+    sale_date: date
+    revenue: Optional[Decimal] = Decimal("0.00")
+    transaction_count: Optional[int] = 0
+
+
+class SaleCreate(SaleBase):
+    outlet_id: int
+
+
+class SaleResponse(SaleBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    sale_id: int
+    outlet_id: int
+
+
+class RevenueTrendDTO(BaseModel):
+    date: date
+    revenue: Decimal
+    transactions: int
+
+
+class OutletPerformanceDTO(BaseModel):
+    outlet_id: int
+    outlet_name: str
+    location: Optional[str] = None
+    status: Optional[str] = None
+    franchise_id: int
+    franchise_name: Optional[str] = None
+
+    total_revenue: Decimal
+    total_transactions: int
+    average_revenue_per_day: Decimal
+    average_revenue_per_transaction: Decimal
+
+    health_score: Decimal
+    performance_label: str
+    revenue_trend: List[RevenueTrendDTO]
+
+
+class FranchiseComparisonDTO(BaseModel):
+    outlet_id: int
+    outlet_name: str
+    location: Optional[str] = None
+    status: Optional[str] = None
+    total_revenue: Decimal
+    total_transactions: int
+    health_score: Decimal
+    rank: Optional[int] = None
+    performance_label: str
+
+
+class DashboardSummaryDTO(BaseModel):
+    total_outlets: int
+    active_outlets: int
+    underperforming_outlets: int
+    total_revenue: Decimal
+    total_transactions: int
+    average_health_score: Decimal
+    top_performing_outlet: Optional[FranchiseComparisonDTO] = None
+    lowest_performing_outlet: Optional[FranchiseComparisonDTO] = None
+    recent_underperformers: List[FranchiseComparisonDTO]
+
+
+class UnderperformingOutletDTO(BaseModel):
+    outlet_id: int
+    outlet_name: str
+    location: Optional[str] = None
+    franchise_id: int
+    franchise_name: Optional[str] = None
+    total_revenue: Decimal
+    franchise_average_revenue: Decimal
+    health_score: Decimal
+    reason: str
+
+
+# ------------------- Inventory Schemas -------------------
+
+class ProductBase(BaseModel):
+    product_name: str
+    category: Optional[str] = None
+    unit: Optional[str] = None
+    unit_price: Optional[Decimal] = Decimal("0.00")
+
+
+class ProductCreate(ProductBase):
+    pass
+
+
+class ProductResponse(ProductBase):
+    model_config = ConfigDict(from_attributes=True)
+    product_id: int
+
+
+class InventoryBase(BaseModel):
+    outlet_id: int
+    product_id: int
+    current_stock: Optional[Decimal] = Decimal("0.00")
+    reorder_point: Optional[Decimal] = Decimal("0.00")
+    reorder_quantity: Optional[Decimal] = Decimal("0.00")
+    max_stock: Optional[Decimal] = None
+    last_updated: Optional[date] = None
+
+
+class InventoryCreate(InventoryBase):
+    pass
+
+
+class InventoryUpdate(BaseModel):
+    current_stock: Optional[Decimal] = None
+    reorder_point: Optional[Decimal] = None
+    reorder_quantity: Optional[Decimal] = None
+    max_stock: Optional[Decimal] = None
+    last_updated: Optional[date] = None
+
+
+class InventoryResponse(InventoryBase):
+    model_config = ConfigDict(from_attributes=True)
+    inventory_id: int
+    product: Optional[ProductResponse] = None
+    outlet: Optional[OutletResponse] = None
+
+
+class InventoryTransactionBase(BaseModel):
+    inventory_id: int
+    transaction_date: date
+    transaction_type: str  # IN, OUT, WASTAGE, RETURN
+    quantity: Optional[Decimal] = Decimal("0.00")
+    reason: Optional[str] = None
+
+
+class InventoryTransactionCreate(InventoryTransactionBase):
+    pass
+
+
+class InventoryTransactionResponse(InventoryTransactionBase):
+    model_config = ConfigDict(from_attributes=True)
+    transaction_id: int
+
+
+class PurchaseOrderBase(BaseModel):
+    outlet_id: int
+    product_id: int
+    order_date: Optional[date] = None
+    expected_delivery_date: Optional[date] = None
+    quantity: Optional[Decimal] = Decimal("0.00")
+    status: Optional[str] = "PENDING"
+
+
+class PurchaseOrderCreate(PurchaseOrderBase):
+    pass
+
+
+class PurchaseOrderResponse(PurchaseOrderBase):
+    model_config = ConfigDict(from_attributes=True)
+    order_id: int
+
+
+class InventoryStatusDTO(BaseModel):
+    inventory_id: int
+    outlet_id: int
+    outlet_name: Optional[str] = None
+    product_id: int
+    product_name: Optional[str] = None
+    category: Optional[str] = None
+    current_stock: Decimal
+    reorder_point: Decimal
+    reorder_quantity: Decimal
+    max_stock: Optional[Decimal] = None
+    status: str  # Critical, Low Stock, Overstock, Normal
+
+
+class DemandForecastDTO(BaseModel):
+    outlet_id: int
+    outlet_name: Optional[str] = None
+    product_id: int
+    product_name: Optional[str] = None
+    forecasted_daily_demand: Decimal
+    forecast_period_days: int
+    total_historical_demand: Decimal
+
+
+class StockAlertDTO(BaseModel):
+    alert_type: str  # LOW_STOCK, CRITICAL, OVERSTOCK
+    outlet_id: int
+    outlet_name: Optional[str] = None
+    product_id: int
+    product_name: Optional[str] = None
+    current_stock: Decimal
+    threshold: Decimal
+    message: str
+
+
+class ReplenishmentRecommendationDTO(BaseModel):
+    outlet_id: int
+    outlet_name: Optional[str] = None
+    product_id: int
+    product_name: Optional[str] = None
+    current_stock: Decimal
+    forecasted_daily_demand: Decimal
+    days_until_stockout: Optional[int] = None
+    recommended_order_quantity: Decimal
+    recommended_order_date: Optional[date] = None
+    reason: str
+
+
+class InventoryDashboardDTO(BaseModel):
+    total_products: int
+    total_inventory_items: int
+    total_stock_value: Decimal
+    low_stock_count: int
+    critical_stock_count: int
+    overstock_count: int
+    total_wastage_30_days: Decimal
+    top_alerts: List[StockAlertDTO]
+    replenishment_recommendations: List[ReplenishmentRecommendationDTO]
+
+
+# ------------------- Milestone 3: Workforce & Marketing Schemas -------------------
+
+class EmployeeBase(BaseModel):
+    outlet_id: int
+    full_name: str
+    role: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    hourly_rate: Optional[Decimal] = Decimal("0.00")
+    hire_date: Optional[date] = None
+    status: Optional[str] = "Active"
+
+
+class EmployeeCreate(EmployeeBase):
+    pass
+
+
+class EmployeeResponse(EmployeeBase):
+    model_config = ConfigDict(from_attributes=True)
+    employee_id: int
+
+
+class AttendanceBase(BaseModel):
+    employee_id: int
+    attendance_date: date
+    status: str  # PRESENT, ABSENT, LATE, HALF_DAY
+    hours_worked: Optional[Decimal] = Decimal("0.00")
+    notes: Optional[str] = None
+
+
+class AttendanceCreate(AttendanceBase):
+    pass
+
+
+class AttendanceResponse(AttendanceBase):
+    model_config = ConfigDict(from_attributes=True)
+    attendance_id: int
+
+
+class ScheduleBase(BaseModel):
+    employee_id: int
+    schedule_date: date
+    shift_start: Optional[str] = None
+    shift_end: Optional[str] = None
+    status: Optional[str] = "SCHEDULED"
+
+
+class ScheduleCreate(ScheduleBase):
+    pass
+
+
+class ScheduleResponse(ScheduleBase):
+    model_config = ConfigDict(from_attributes=True)
+    schedule_id: int
+
+
+class MarketingCampaignBase(BaseModel):
+    outlet_id: int
+    campaign_name: str
+    campaign_type: Optional[str] = None
+    start_date: date
+    end_date: date
+    budget: Optional[Decimal] = Decimal("0.00")
+    status: Optional[str] = "Active"
+
+
+class MarketingCampaignCreate(MarketingCampaignBase):
+    pass
+
+
+class MarketingCampaignResponse(MarketingCampaignBase):
+    model_config = ConfigDict(from_attributes=True)
+    campaign_id: int
+
+
+class CampaignPerformanceBase(BaseModel):
+    campaign_id: int
+    performance_date: date
+    impressions: Optional[int] = 0
+    clicks: Optional[int] = 0
+    conversions: Optional[int] = 0
+    engagement_score: Optional[Decimal] = Decimal("0.00")
+    revenue: Optional[Decimal] = Decimal("0.00")
+
+
+class CampaignPerformanceCreate(CampaignPerformanceBase):
+    pass
+
+
+class CampaignPerformanceResponse(CampaignPerformanceBase):
+    model_config = ConfigDict(from_attributes=True)
+    performance_id: int
+
+
+class EmployeePerformanceDTO(BaseModel):
+    employee_id: int
+    full_name: str
+    outlet_id: int
+    outlet_name: Optional[str] = None
+    role: Optional[str] = None
+    total_days: int
+    present_days: int
+    absent_days: int
+    late_days: int
+    half_day_days: int
+    attendance_rate: Decimal
+    total_hours_worked: Decimal
+    average_hours_per_day: Decimal
+    productivity_score: Decimal  # 0-100
+    performance_label: str
+
+
+class OutletWorkforceDTO(BaseModel):
+    outlet_id: int
+    outlet_name: Optional[str] = None
+    total_employees: int
+    active_employees: int
+    average_attendance_rate: Decimal
+    total_hours_worked: Decimal
+    staffing_shortage_count: int
+    employee_performances: List[EmployeePerformanceDTO]
+
+
+class StaffingAlertDTO(BaseModel):
+    outlet_id: int
+    outlet_name: Optional[str] = None
+    alert_type: str  # SHORTAGE, OVERSTAFFED
+    scheduled_staff_count: int
+    expected_staff_count: int
+    message: str
+
+
+class WorkforceDashboardDTO(BaseModel):
+    total_employees: int
+    active_employees: int
+    total_outlets_with_employees: int
+    average_attendance_rate: Decimal
+    total_hours_worked: Decimal
+    top_performers: List[EmployeePerformanceDTO]
+    underperformers: List[EmployeePerformanceDTO]
+    staffing_alerts: List[StaffingAlertDTO]
+
+
+class CampaignAnalyticsDTO(BaseModel):
+    campaign_id: int
+    campaign_name: str
+    outlet_id: int
+    outlet_name: Optional[str] = None
+    campaign_type: Optional[str] = None
+    start_date: date
+    end_date: date
+    budget: Decimal
+    total_revenue: Decimal
+    total_impressions: int
+    total_clicks: int
+    total_conversions: int
+    average_engagement_score: Decimal
+    roi_percentage: Decimal
+    engagement_rate: Decimal  # clicks / impressions
+    conversion_rate: Decimal  # conversions / clicks
+    status: str
+    performance_label: str
+
+
+class MarketingDashboardDTO(BaseModel):
+    total_campaigns: int
+    active_campaigns: int
+    total_budget: Decimal
+    total_revenue: Decimal
+    overall_roi_percentage: Decimal
+    average_engagement_rate: Decimal
+    average_conversion_rate: Decimal
+    top_campaigns: List[CampaignAnalyticsDTO]
+    underperforming_campaigns: List[CampaignAnalyticsDTO]
+    campaigns_by_type: dict[str, int]
+
+
+# ------------------- Milestone 4: Audit -------------------
+
+
+class AuditInspectionBase(BaseModel):
+    outlet_id: int
+    inspection_date: date
+    auditor_name: str
+    score: Decimal = Field(ge=0, le=100)
+    status: str  # Passed, Warning, Failed
+    critical_violations: int = 0
+    minor_violations: int = 0
+    notes: Optional[str] = None
+
+
+class AuditInspectionCreate(AuditInspectionBase):
+    pass
+
+
+class AuditInspectionResponse(AuditInspectionBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    audit_id: int
+    outlet_name: Optional[str] = None
+
+
+class AuditComplianceRecordBase(BaseModel):
+    outlet_id: int
+    record_date: date
+    compliance_score: Decimal = Field(ge=0, le=100)
+    violation_count: int = 0
+
+
+class AuditComplianceRecordCreate(AuditComplianceRecordBase):
+    pass
+
+
+class AuditComplianceRecordResponse(AuditComplianceRecordBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    record_id: int
+    outlet_name: Optional[str] = None
+
+
+class AuditDashboardDTO(BaseModel):
+    total_inspections: int
+    average_inspection_score: Decimal
+    passed_count: int
+    warning_count: int
+    failed_count: int
+    average_compliance_score: Decimal
+    outlets_below_compliance_threshold: int
+    compliance_threshold: Decimal
+    recent_inspections: List[AuditInspectionResponse]
+    compliance_by_outlet: List[AuditComplianceRecordResponse]
+
+
+class ComplianceOutletSummaryDTO(BaseModel):
+    outlet_id: int
+    pipeline_outlet_id: str
+    outlet_name: Optional[str] = None
+    compliance_score: Decimal
+    violation_count: int
+    latest_inspection_score: Optional[Decimal] = None
+    inspection_status: Optional[str] = None
+    health_status: Optional[str] = None
+    performance_score: Optional[Decimal] = None
+
+
+# ------------------- Milestone 4: Executive -------------------
+
+
+class ExecutiveAgentSummaryDTO(BaseModel):
+    agent_name: str
+    status: str
+    key_metric: str
+    key_value: str
+    alert_count: int = 0
+
+
+class ExecutiveDashboardDTO(BaseModel):
+    generated_at: datetime
+    total_outlets: int
+    active_outlets: int
+    total_revenue: Decimal
+    average_health_score: Decimal
+    critical_outlets: int
+    at_risk_outlets: int
+    healthy_outlets: int
+    active_notifications: int
+    open_action_plans: int
+    pipeline_generated_at: Optional[datetime] = None
+    agent_summaries: List[ExecutiveAgentSummaryDTO]
+    top_priority_outlets: List[ComplianceOutletSummaryDTO]
+
+
+# ------------------- Milestone 4: Notifications -------------------
+
+
+class NotificationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    notification_id: int
+    alert_key: str
+    domain: str
+    severity: str
+    outlet_id: Optional[int] = None
+    outlet_name: Optional[str] = None
+    title: str
+    description: Optional[str] = None
+    status: str
+    source_agent: Optional[str] = None
+    affected_area: Optional[str] = None
+    metric: Optional[str] = None
+    metric_value: Optional[Decimal] = None
+    threshold_value: Optional[Decimal] = None
+    recommendation: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class NotificationStatusUpdate(BaseModel):
+    status: str  # active, acknowledged, resolved
+
+
+class ActionPlanBase(BaseModel):
+    outlet_id: int
+    title: str
+    description: Optional[str] = None
+    priority: str = "medium"
+    status: str = "open"
+    due_date: Optional[date] = None
+    notification_id: Optional[int] = None
+
+
+class ActionPlanCreate(ActionPlanBase):
+    pass
+
+
+class ActionPlanResponse(ActionPlanBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    plan_id: int
+    created_at: datetime
+    outlet_name: Optional[str] = None
